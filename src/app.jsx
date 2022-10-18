@@ -1,11 +1,11 @@
 import React, { Component } from "react";
 import MonacoEditor from "@monaco-editor/react";
-// import { samples } from "./samples";
 import "react-app-polyfill/ie11";
 import Form, { withTheme } from "@rjsf/core";
 import { shouldRender } from "@rjsf/utils";
 import DemoFrame from "./DemoFrame";
 import localValidator from "@rjsf/validator-ajv6";
+import Axios from 'axios';
 
 const log = (type) => console.log.bind(console, type);
 const toJson = (val) => {
@@ -30,8 +30,8 @@ const toGQL = (val) => {
   return query 
 }
 
-const samples = {
-  schema: {
+const consentSamples = {
+  consentSchema: {
     title: "Select the fields you consent to sharing",
     type: "object",
     properties: {
@@ -41,38 +41,52 @@ const samples = {
       date: {
         type: "boolean",
       },
-      industry: {
+      created_at: {
+        type: "boolean",
+      },
+      absence_reason: {
+        type: "boolean",
+      }
+    }
+  },
+  consentuiSchema: {
+    classNames: "custom-css-class",
+  },
+  consentFormData: {
+    id: false,
+    date: false,
+    absence_reason: false,
+    created_at: false,
+  }
+};
+
+const querySamples = {
+  querySchema: {
+    title: "Select the fields you want to query for",
+    type: "object",
+    properties: {
+      id: {
+        type: "boolean"
+      },
+      date: {
         type: "boolean",
       },
       created_at: {
         type: "boolean",
       },
-      district: {
+      absence_reason: {
         type: "boolean",
-      },
-      dis_location: {
-        type: "boolean",
-      },
-      dis_name: {
-        type: "boolean",
-      },
-      iti: {
-        type: "boolean",
-      },
+      }
     }
   },
-  uiSchema: {
+  queryuiSchema: {
     classNames: "custom-css-class",
   },
-  formData: {
-  id: false,
-  date: false,
-  industry: false,
-  created_at: false,
-  district: false,
-  dis_location: false,
-  dis_name: false,
-  iti: false
+  queryFormData: {
+    id: false,
+    date: false,
+    absence_reason: false,
+    created_at: false,
   }
 };
 
@@ -98,7 +112,11 @@ const monacoEditorOptions = {
 class GeoPosition extends Component {
   constructor(props) {
     super(props);
-    this.state = { ...props.formData };
+    this.state = { 
+      ...props.formData,
+      query: "",
+      superyQuery: "",
+    };
   }
 
   onChange(name) {
@@ -214,14 +232,22 @@ class Selector extends Component {
     return (event) => {
       event.preventDefault();
       this.setState({ current: label });
-      setTimeout(() => this.props.onSelected(samples[label]), 0);
+      setTimeout(() => this.props.onSelected(consentSamples[label]), 0);
+    };
+  };
+
+  onQueryLabelClick = (label) => {
+    return (event) => {
+      event.preventDefault();
+      this.setState({ current: label });
+      setTimeout(() => this.props.onSelected(querySamples[label]), 0);
     };
   };
 
   render() {
     return (
       <ul className="nav nav-pills">
-        {Object.keys(samples).map((label, i) => {
+        {Object.keys(consentSamples).map((label, i) => {
           return (
             <li
               key={i}
@@ -356,14 +382,19 @@ class Playground extends Component {
     // set default theme
     const theme = "default";
     const validator = "AJV6";
-    // initialize state with Simple data sample
-    const { schema, uiSchema, formData, validate } = samples;
+    const { consentSchema, consentuiSchema, consentFormData, validate } = consentSamples;
+    const { querySchema, queryuiSchema, queryFormData} = querySamples;
+    
     this.playGroundForm = React.createRef();
+    this.queryForm = React.createRef();
     this.state = {
       form: false,
-      schema,
-      uiSchema,
-      formData,
+      consentSchema,
+      querySchema,
+      consentuiSchema,
+      queryuiSchema,
+      consentFormData,
+      queryFormData,
       validate,
       theme,
       validator,
@@ -377,6 +408,9 @@ class Playground extends Component {
       },
       shareURL: null,
       FormComponent: withTheme({}),
+      query: "",
+      superQuery: "",
+      result: {}
     };
   }
 
@@ -464,12 +498,14 @@ class Playground extends Component {
 
   setLiveSettings = ({ formData }) => this.setState({ liveSettings: formData });
 
-  onFormDataChange = ({ formData = "" }) =>
-    this.setState({ formData, shareURL: null });
+  onFormDataChange = ({ consentFormData = "" }) =>
+    this.setState({ consentFormData, shareURL: null });
+
+  onQueryFormDataChange = ({ queryFormData = "" }) =>
+    this.setState({ queryFormData, shareURL: null });
 
   onShare = () => {
-    const { formData, schema, uiSchema, liveSettings, errorSchema, theme } =
-      this.state;
+    const { formData, schema, uiSchema, liveSettings, errorSchema, theme } = this.state;
     const {
       location: { origin, pathname },
     } = document;
@@ -492,9 +528,12 @@ class Playground extends Component {
 
   render() {
     const {
-      schema,
-      uiSchema,
-      formData,
+      consentSchema,
+      consentuiSchema,
+      consentFormData,
+      querySchema,
+      queryuiSchema,
+      queryFormData,
       extraErrors,
       liveSettings,
       validate,
@@ -524,99 +563,86 @@ class Playground extends Component {
       <div className="container-fluid">
         <div className="page-header">
           <h1>Consent Artifact Field Selector</h1>
-          {/* <div className="row">
-            <div className="col-sm-8">
-              <Selector onSelected={this.load} />
-            </div>
-            <div className="col-sm-2">
-              <Form
-                idPrefix="rjsf_options"
-                schema={liveSettingsSchema}
-                formData={liveSettings}
-                validator={localValidator}
-                onChange={this.setLiveSettings}
-              >
-                <div />
-              </Form>
-            </div>
-            <div className="col-sm-2">
-              <ThemeSelector
-                themes={themes}
-                theme={theme}
-                select={this.onThemeSelected}
-              />
-              {themes[theme].subthemes && (
-                <SubthemeSelector
-                  subthemes={themes[theme].subthemes}
-                  subtheme={subtheme}
-                  select={this.onSubthemeSelected}
-                />
-              )}
-              <ValidatorSelector
-                validators={validators}
-                validator={validator}
-                select={this.onValidatorSelected}
-              />
-              <button
-                title="Click me to submit the form programmatically."
-                className="btn btn-default"
-                type="button"
-                onClick={() => this.playGroundForm.current.submit()}
-              >
-                Prog. Submit
-              </button>
-              <span> </span>
-              <button
-                title="Click me to validate the form programmatically."
-                className="btn btn-default"
-                type="button"
-                onClick={() => {
-                  const valid = this.playGroundForm.current.validateForm();
-                  alert(valid ? "Form is valid" : "Form has errors");
-                }}
-              >
-                Prog. Validate
-              </button>
-              <div style={{ marginTop: "5px" }} />
-              <CopyLink shareURL={this.state.shareURL} onShare={this.onShare} />
-            </div>
-          </div> */}
         </div>
         <div className="col-sm-7">
-          <Editor
-            lang = "json"
-            title="JSONSchema"
-            code={toJson(schema)}
-            onChange={this.onSchemaEdited}
-          />
+          <div className="col-sm-5">
+          {this.state.form && (
+            <DemoFrame
+              head={
+                <React.Fragment>
+                  <link
+                    rel="stylesheet"
+                    id="theme"
+                    href={this.state.stylesheet || ""}
+                  />
+                  {theme === "antd" && (
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html:
+                          document.getElementById("antd-styles-iframe")
+                            .contentDocument.head.innerHTML,
+                      }}
+                    />
+                  )}
+                </React.Fragment>
+              }
+              style={{
+                width: "100%",
+                height: 1000,
+                border: 0,
+              }}
+              theme={theme}
+            >
+              <FormComponent
+                {...templateProps}
+                liveValidate={liveSettings.validate}
+                disabled={liveSettings.disable}
+                readonly={liveSettings.readonly}
+                omitExtraData={liveSettings.omitExtraData}
+                liveOmit={liveSettings.liveOmit}
+                noValidate={liveSettings.noValidate}
+                schema={querySchema}
+                uiSchema={queryuiSchema}
+                formData={queryFormData}
+                onChange={this.onQueryFormDataChange}
+                noHtml5Validate={true}
+                onSubmit={({ formData }, e) => {
+                  e.preventDefault();
+                  console.log("submitted formData", formData);
+                  const query = toGQL(formData);
+                  console.log("submitted gqlQuery", query);
+                  console.log("submit event", e);
+                  navigator.clipboard.writeText(query); 
+                  this.setState({...this.state, queryFormData: formData, query: toGQL(formData)}); 
+                  console.log("states: ", this.state);
+                  window.alert(this.state.query);
+                }}
+                fields={{ geo: GeoPosition }}
+                customValidate={validate}
+                validator={validators[validator]}
+                onBlur={(id, value) =>
+                  console.log(`Touched ${id} with value ${value}`)
+                }
+                onFocus={(id, value) =>
+                  console.log(`Focused ${id} with value ${value}`)
+                }
+                transformErrors={transformErrors}
+                onError={log("errors")}
+                ref={this.queryForm}
+              /> 
+            </DemoFrame>
+          )}
+        </div>
           <div className="row">
-            {/* <div className="col-sm-6">
-              <Editor
-                title="UISchema"
-                code={toJson(uiSchema)}
-                onChange={this.onUISchemaEdited}
-              />
-            </div> */}
             <div className="col-sm-6">
               <Editor
                 lang="json"
-                title="formData"
-                code={toJson(formData)}
+                title="result"
+                code={toJson(this.state.result)}
                 onChange={this.onFormDataEdited}
               />
             </div>
           </div>
-          {extraErrors && (
-            <div className="row">
-              <div className="col">
-                <Editor
-                  title="extraErrors"
-                  code={toJson(extraErrors || {})}
-                  onChange={this.onExtraErrorsEdited}
-                />
-              </div>
-            </div>
-          )}
         </div>
         <div className="col-sm-5">
           {this.state.form && (
@@ -654,17 +680,20 @@ class Playground extends Component {
                 omitExtraData={liveSettings.omitExtraData}
                 liveOmit={liveSettings.liveOmit}
                 noValidate={liveSettings.noValidate}
-                schema={schema}
-                uiSchema={uiSchema}
-                formData={formData}
+                schema={consentSchema}
+                uiSchema={consentuiSchema}
+                formData={consentFormData}
                 onChange={this.onFormDataChange}
                 noHtml5Validate={true}
                 onSubmit={({ formData }, e) => {
-                  console.log("submitted formData", formData);
+                  e.preventDefault();
+                  console.log("submitted formData", consentFormData);
                   const superQuery = toGQL(formData);
                   console.log("submitted gqlSuperQuery", superQuery);
                   console.log("submit event", e);
-                  navigator.clipboard.writeText(superQuery);   
+                  navigator.clipboard.writeText(superQuery);
+                  this.setState({superQuery: superQuery});   
+                  console.log("states: ", this.state);
                   window.alert("Query copied to clipboard");
                 }}
                 fields={{ geo: GeoPosition }}
@@ -680,28 +709,73 @@ class Playground extends Component {
                 onError={log("errors")}
                 ref={this.playGroundForm}
               />
+              <div className="row">
+            <div className="col-sm-6">
+              <button className="btn" onClick={(e) => {
+                console.log('query in run: ', this.state.query);
+                console.log('super query in run: ', this.state.superQuery)
+                Axios({
+                  method: 'POST',
+                  url: 'http://localhost:3334/req-checker',
+                  data: {
+                    consentArtifact: {
+                      "created": "YYYY-MM-DDThh:mm:ssZn.n",
+                      "expires": "YYYY-MM-DDThh:mm:ssZn.n",
+                      "id": "",
+                      "revocable": false,
+                      "collector": {
+                          "id": "",
+                          "url": "https://sample-collector/api/v1/collect"
+                      },
+                      "consumer": {
+                          "id": "",
+                          "url": "https://sample-consumer/api/v1/consume"
+                      },
+                      "provider": {
+                          "id": "",
+                          "url": "https://sample-consumer/api/v1"
+                      },
+                      "user": {
+                          "type": "AADHAAR|MOBILE|PAN|PASSPORT|...",
+                          "name": "",
+                          "issuer": "",
+                          "dpID": "",
+                          "cmID": "",
+                          "dcID": ""
+                      },
+                      "revoker": {
+                          "url": "https://sample-revoker/api/v1/revoke",
+                          "name": "",
+                          "id": ""
+                      },
+                      "purpose": "",
+                      "user_sign": "",
+                      "collector_sign": "",
+                      "log": {
+                          "consent_use": {
+                              "url": "https://sample-log/api/v1/log"
+                          },
+                          "data_access": {
+                              "url": "https://sample-log/api/v1/log"
+                          }
+                      },
+                      "data": this.state.superQuery,
+                      },
+                      gql: this.state.query
+                  }
+                }).then((res) => {
+                  console.log(res.data)
+                  this.setState({result: res.data})
+                }).catch((err) => {
+                  console.log('err: ', err);
+                });
+              }}> Run Query </button>
+            </div>
+          </div>
             </DemoFrame>
           )}
+          
         </div>
-        <div>
-          <button> copy super query </button>
-        </div>
-        {/* <div className="col-sm-12">
-          <p style={{ textAlign: "center" }}>
-            Powered by{" "}
-            <a href="https://github.com/rjsf-team/react-jsonschema-form">
-              react-jsonschema-form
-            </a>
-            .
-            {import.meta.env.VITE_SHOW_NETLIFY_BADGE === "true" && (
-              <div style={{ float: "right" }}>
-                <a href="https://www.netlify.com">
-                  <img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" />
-                </a>
-              </div>
-            )}
-          </p>
-        </div> */}
       </div>
     );
   }
