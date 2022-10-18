@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { Component ,useState} from "react";
 import MonacoEditor from "@monaco-editor/react";
 import "react-app-polyfill/ie11";
 import Form, { withTheme } from "@rjsf/core";
@@ -6,6 +6,11 @@ import { shouldRender } from "@rjsf/utils";
 import DemoFrame from "./DemoFrame";
 import localValidator from "@rjsf/validator-ajv6";
 import Axios from 'axios';
+import Row from 'react-bootstrap/Row';
+import Col from 'react-bootstrap/Col';
+import Alert from '@mui/material/Alert';
+import { Container } from "@mui/system";
+import ResponsiveAppBar from "./DemoCounter"
 
 const log = (type) => console.log.bind(console, type);
 const toJson = (val) => {
@@ -32,7 +37,7 @@ const toGQL = (val) => {
 
 const consentSamples = {
   consentSchema: {
-    title: "Select the fields you consent to sharing",
+    title: "User Field",
     type: "object",
     properties: {
       id: {
@@ -62,7 +67,7 @@ const consentSamples = {
 
 const querySamples = {
   querySchema: {
-    title: "Select the fields you want to query for",
+    title: "Consumer Field",
     type: "object",
     properties: {
       id: {
@@ -406,11 +411,14 @@ class Playground extends Component {
         omitExtraData: false,
         liveOmit: false,
       },
-      shareURL: null,
+      shareURL: "",
       FormComponent: withTheme({}),
       query: "",
       superQuery: "",
-      result: {}
+      result: {},
+      message:"Please check the desired attributes",
+      error:0,
+      count:0
     };
   }
 
@@ -522,10 +530,11 @@ class Playground extends Component {
       );
       this.setState({ shareURL: `${origin}${pathname}#${hash}` });
     } catch (err) {
+      
       this.setState({ shareURL: null });
     }
   };
-
+  
   render() {
     const {
       consentSchema,
@@ -544,6 +553,7 @@ class Playground extends Component {
       ArrayFieldTemplate,
       ObjectFieldTemplate,
       transformErrors,
+      shareURL,
     } = this.state;
 
     const { themes, validators } = this.props;
@@ -560,12 +570,24 @@ class Playground extends Component {
     }
 
     return (
-      <div className="container-fluid">
-        <div className="page-header">
-          <h1>Consent Artifact Field Selector</h1>
-        </div>
-        <div className="col-sm-7">
-          <div className="col-sm-5">
+        <Container>
+        <Row>
+          <Col>
+          <div className="page-header row">
+             <h1>Consent Artifact Field Selector</h1>
+          </div>
+          </Col>
+        </Row>
+        <Row style={{marginBottom:"20px", width:"20%"}}>
+          <Alert style={{width:"100%", fontSize:"20px"}} severity="info">Count of Query: {this.state.count}</Alert>
+        </Row>
+        <Row style={{marginBottom:"20px"}}>
+          {this.state.error === 200? <Alert style={{width:"100%", fontSize:"20px"}} severity="success">{this.state.message}</Alert> :<Alert style={{width:"100%", fontSize:"20px"}} severity="error">{this.state.message}</Alert>}
+        {/* {shareURL == null ? <Alert style={{width:"100%", fontSize:"20px"}} severity="info">This is an error alert — check it out!</Alert>: <Alert style={{width:"100%", fontSize:"20px"}} severity="success">This is an info alert — check it out!</Alert>} */}
+        </Row>
+        <Row style={{height:"500px"}}>
+          <Col md={4}>
+          <div className="col">
           {this.state.form && (
             <DemoFrame
               head={
@@ -588,7 +610,7 @@ class Playground extends Component {
               }
               style={{
                 width: "100%",
-                height: 1000,
+                height: "400px",
                 border: 0,
               }}
               theme={theme}
@@ -632,20 +654,11 @@ class Playground extends Component {
               /> 
             </DemoFrame>
           )}
-        </div>
-          <div className="row">
-            <div className="col-sm-6">
-              <Editor
-                lang="json"
-                title="result"
-                code={toJson(this.state.result)}
-                onChange={this.onFormDataEdited}
-              />
-            </div>
           </div>
-        </div>
-        <div className="col-sm-5">
-          {this.state.form && (
+          </Col>
+          <Col md={4}>
+          <div className="col">
+       {this.state.form && (
             <DemoFrame
               head={
                 <React.Fragment>
@@ -711,7 +724,7 @@ class Playground extends Component {
               />
               <div className="row">
             <div className="col-sm-6">
-              <button className="btn" onClick={(e) => {
+              <button style={{marginTop:"10px"}} className="btn" onClick={(e) => {
                 console.log('query in run: ', this.state.query);
                 console.log('super query in run: ', this.state.superQuery)
                 Axios({
@@ -764,9 +777,30 @@ class Playground extends Component {
                       gql: this.state.query
                   }
                 }).then((res) => {
+                  var d = new Date();
+                  var n = d.toLocaleTimeString();
+                  this.setState({count: this.state.count+1});
+                  this.setState({message: n+" Requested data for farmer with aadhar number xxxxxxxxxxx"});
+                    this.setState({error: 200});
                   console.log(res.data)
                   this.setState({result: res.data})
                 }).catch((err) => {
+                  var d = new Date();
+                  var n = d.toLocaleTimeString();
+                  this.setState({count: this.state.count+1});
+                  if(err.response.status === 429)
+                  {
+
+                    this.setState({message: n+" Too many requests!"});
+                      this.setState({error: 429});
+                      console.log(n);
+
+                  }
+                  else if(err.response.status === 403)
+                  {
+                      this.setState({message: n+" You dont have access to the requested attributes"});
+                      this.setState({error: 403});
+                  }
                   console.log('err: ', err.data);  
                   this.setState({
                     result: {
@@ -779,11 +813,22 @@ class Playground extends Component {
               }}> Run Query </button>
             </div>
           </div>
+          <div className="row">
+          </div>
             </DemoFrame>
           )}
-          
-        </div>
-      </div>
+          </div>
+          </Col>
+          <Col md={4}>
+          <Editor
+                lang="json"
+                title="result"
+                code={toJson(this.state.result)}
+                onChange={this.onFormDataEdited}
+              />
+          </Col>
+        </Row>
+      </Container>
     );
   }
 }
