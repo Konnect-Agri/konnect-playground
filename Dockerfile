@@ -3,4 +3,6 @@ WORKDIR /app
 COPY ["package.json", "package-lock.json*", "./"]
 RUN npm install
 COPY . .
-CMD ["npm", "run", "preview"]
+RUN npm run build
+RUN npm i -g serve
+CMD ["serve", "-s", "dist"]
