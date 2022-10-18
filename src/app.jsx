@@ -767,7 +767,14 @@ class Playground extends Component {
                   console.log(res.data)
                   this.setState({result: res.data})
                 }).catch((err) => {
-                  console.log('err: ', err);
+                  console.log('err: ', err.data);  
+                  this.setState({
+                    result: {
+                      code: err.code,
+                      name: err.name,
+                      message: err.message
+                    }
+                  })                
                 });
               }}> Run Query </button>
             </div>
