@@ -801,6 +801,14 @@ class Playground extends Component {
                       this.setState({message: n+" You dont have access to the requested attributes"});
                       this.setState({error: 403});
                   }
+                  console.log('err: ', err.data);  
+                  this.setState({
+                    result: {
+                      code: err.code,
+                      name: err.name,
+                      message: err.message
+                    }
+                  })                
                 });
               }}> Run Query </button>
             </div>
