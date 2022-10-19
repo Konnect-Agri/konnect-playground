@@ -729,7 +729,7 @@ class Playground extends Component {
                 console.log('super query in run: ', this.state.superQuery)
                 Axios({
                   method: 'POST',
-                  url: 'http://localhost:3334/req-checker',
+                  url: 'https://gatekeeper-production-75c4.up.railway.app/req-checker',
                   data: {
                     consentArtifact: {
                       "created": "YYYY-MM-DDThh:mm:ssZn.n",
