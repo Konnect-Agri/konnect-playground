@@ -37,7 +37,7 @@ const toGQL = (val) => {
 
 const consentSamples = {
   consentSchema: {
-    title: "User Field",
+    title: "Farmer Consent",
     type: "object",
     properties: {
       id: {
@@ -67,7 +67,7 @@ const consentSamples = {
 
 const querySamples = {
   querySchema: {
-    title: "Consumer Field",
+    title: "Bank Request",
     type: "object",
     properties: {
       id: {
@@ -630,14 +630,14 @@ class Playground extends Component {
                 noHtml5Validate={true}
                 onSubmit={({ formData }, e) => {
                   e.preventDefault();
-                  console.log("submitted formData", formData);
+                  // console.log("submitted formData", formData);
                   const query = toGQL(formData);
-                  console.log("submitted gqlQuery", query);
-                  console.log("submit event", e);
+                  // console.log("submitted gqlQuery", query);
+                  // console.log("submit event", e);
                   navigator.clipboard.writeText(query); 
                   this.setState({...this.state, queryFormData: formData, query: toGQL(formData)}); 
-                  console.log("states: ", this.state);
-                  window.alert(this.state.query);
+                  // console.log("states: ", this.state);
+                  window.alert("Bank Query Saved");
                 }}
                 fields={{ geo: GeoPosition }}
                 customValidate={validate}
@@ -700,12 +700,12 @@ class Playground extends Component {
                 noHtml5Validate={true}
                 onSubmit={({ formData }, e) => {
                   e.preventDefault();
-                  console.log("submitted formData", consentFormData);
+                  // console.log("submitted formData", consentFormData);
                   const superQuery = toGQL(formData);
-                  console.log("submitted gqlSuperQuery", superQuery);
-                  console.log("submit event", e);
+                  // console.log("submitted gqlSuperQuery", superQuery);
+                  // console.log("submit event", e);
                   navigator.clipboard.writeText(superQuery);
-                  this.setState({superQuery: superQuery});   
+                  this.setState({...this.state, consentFormData: formData, superQuery: toGQL(formData)});   
                   console.log("states: ", this.state);
                   window.alert("Query copied to clipboard");
                 }}
@@ -715,7 +715,7 @@ class Playground extends Component {
                 onBlur={(id, value) =>
                   console.log(`Touched ${id} with value ${value}`)
                 }
-                onFocus={(id, value) =>
+                on Focus={(id, value) =>
                   console.log(`Focused ${id} with value ${value}`)
                 }
                 transformErrors={transformErrors}
